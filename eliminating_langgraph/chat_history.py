@@ -1,8 +1,7 @@
 from typing import List, Dict
 from datetime import datetime
-from logger_config import setup_logger
+from logger_config import logger
 
-logger = setup_logger('chat_history')
 
 class ChatHistoryManager:
     def __init__(self):

@@ -1,25 +1,18 @@
 import gradio as gr
-from app import faq_llm_call,lookup_knowledge_base,retriever
+from app import faq_llm_call,lookup_knowledge_base,retriever,client
 from prompt_faq import faq_text
 from chat_history import ChatHistoryManager
-from logger_config import setup_logger
 from human_support import HumanSupportHandler
-import traceback
-
-# Set up loggers
-main_logger = setup_logger('main')
-retriever_logger = setup_logger('retriever')
-llm_logger = setup_logger('llm')
+from logger_config import logger
 
 # Initialize the history manager
 history_manager = ChatHistoryManager()
-human_support = HumanSupportHandler()
+human_support = HumanSupportHandler(client)
 
 def respond(message, history):
     """Processes each message and returns the FAQ response."""
     session_id = "default_session"
-    main_logger.info("Processing message for session %s", session_id)
-    
+    logger.info(f"""User entered the Query: {message}""")
     try:
         message = message.strip()
         
@@ -29,7 +22,8 @@ def respond(message, history):
             
         # Check for human support requests first
         support_response, should_process = human_support.handle_message(message, session_id)
-        
+        logger.info(f"""Support Response :{support_response}""")
+        logger.info(f"""Human Escalation required :{not should_process}""")
         if support_response is not None:
             # Add the interaction to history
             history_manager.add_message(session_id, "user", message)
@@ -41,6 +35,7 @@ def respond(message, history):
             
         # Normal message processing
         history_manager.add_message(session_id, "user", message)
+        logger.info(f"Chat history for this session is: {history_manager.get_history(session_id)}")
         chat_history = history_manager.format_history_for_prompt(session_id)
         relevant_context = lookup_knowledge_base(message, retriever)
         bot_message = faq_llm_call(relevant_context, message, chat_history)
@@ -49,7 +44,7 @@ def respond(message, history):
         return bot_message
         
     except Exception as e:
-        main_logger.error("Error in respond function: %s\n%s", str(e), traceback.format_exc())
+        logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
 
 # Create the Gradio interface
